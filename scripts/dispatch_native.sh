@@ -33,7 +33,7 @@ cd "$WORKTREE_DIR"
 echo "📸 Taking blast radius snapshot..."
 BEFORE_HASH=$(find services/ -not -path "services/$SERVICE_NAME/*" \
     -not -path "services/$SERVICE_NAME" \
-    -type f -exec md5sum {} \; 2>/dev/null | sort | md5sum)
+    -type f -exec shasum -a 256 {} \; 2>/dev/null | sort | shasum -a 256)
 
 # ── 3. Enforce readable_paths as Read-Only ─────────────────────
 # Prevent the agent from writing to shared paths declared in manifest
@@ -54,7 +54,14 @@ export TASK_PROMPT="$TASK_PROMPT"
 export WORKSPACE_ROOT="$WORKTREE_DIR"
 export EXECUTION_MODE="native"
 
-timeout 1800 ./scripts/worker_agent.sh  # 30-minute overall mission timeout
+# Portable timeout logic for MacOS
+if command -v timeout &>/dev/null; then
+    timeout 1800 ./scripts/worker_agent.sh
+elif command -v perl &>/dev/null; then
+    perl -e 'eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm shift; system(@ARGV); alarm 0 }; if ($@ eq "TIMEOUT\n") { exit 124 } exit ($? >> 8)' 1800 ./scripts/worker_agent.sh
+else
+    ./scripts/worker_agent.sh
+fi
 WORKER_EXIT=$?
 if [ $WORKER_EXIT -eq 124 ]; then
     echo "⏰ MISSION TIMED OUT after 30 minutes"
@@ -72,7 +79,7 @@ echo ""
 echo "🔍 Verifying blast radius..."
 AFTER_HASH=$(find services/ -not -path "services/$SERVICE_NAME/*" \
     -not -path "services/$SERVICE_NAME" \
-    -type f -exec md5sum {} \; 2>/dev/null | sort | md5sum)
+    -type f -exec shasum -a 256 {} \; 2>/dev/null | sort | shasum -a 256)
 
 if [ "$BEFORE_HASH" != "$AFTER_HASH" ]; then
     echo "🚨 ═══════════════════════════════════════════════════"
@@ -87,7 +94,7 @@ if [ "$BEFORE_HASH" != "$AFTER_HASH" ]; then
     
     # Update audit log
     if [ -n "${LOG_FILE:-}" ]; then
-        sed -i 's/"result": "in_progress"/"result": "blast_radius_breach"/' "$LOG_FILE"
+        jq '.result = "blast_radius_breach"' "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
     fi
     exit 1
 fi

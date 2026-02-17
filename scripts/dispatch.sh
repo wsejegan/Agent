@@ -22,6 +22,8 @@ if ! command -v yq &>/dev/null; then
     exit 1
 fi
 
+LOCK_DIR="services/$SERVICE_NAME/.hiveagent.lock.dir"
+
 # ── 1. Validate Target ─────────────────────────────────────────
 if [ ! -d "services/$SERVICE_NAME" ]; then
     echo "❌ ERROR: Service '$SERVICE_NAME' not found in services/ directory."
@@ -35,19 +37,17 @@ fi
 
 # ── 1.5 Acquire Per-Service Lock ───────────────────────────────
 # Prevents concurrent agents from dispatching to the same service
-exec 200>"$LOCK_FILE"
-if ! flock -n 200; then
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     echo "🔒 ERROR: Service '$SERVICE_NAME' is already being processed by another agent."
-    echo "   Lock file: $LOCK_FILE"
-    echo "   If this is stale, remove it: rm $LOCK_FILE"
+    echo "   Lock directory: $LOCK_DIR"
+    echo "   If this is stale, remove it: rm -rf $LOCK_DIR"
     exit 1
 fi
 echo "🔓 Lock acquired for $SERVICE_NAME"
 
 # Ensure lock is released on exit
 release_lock() {
-    flock -u 200 2>/dev/null || true
-    rm -f "$LOCK_FILE" 2>/dev/null || true
+    rm -rf "$LOCK_DIR" 2>/dev/null || true
 }
 trap release_lock EXIT
 
@@ -152,7 +152,7 @@ else
         if [ "$CONFIRM" != "y" ]; then
             echo "Aborted by user."
             # Update audit log
-            sed -i 's/"result": "in_progress"/"result": "aborted"/' "$LOG_FILE"
+            jq '.result = "aborted"' "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
             exit 1
         fi
     fi

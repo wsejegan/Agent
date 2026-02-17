@@ -19,7 +19,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 PROMPT = sys.argv[1]
-MODEL = os.environ.get("AC_MODEL", "anthropic/claude-3-sonnet")
+MODEL = os.environ.get("AC_MODEL", "anthropic/claude-3.5-sonnet")
 
 payload = {
     "model": MODEL,

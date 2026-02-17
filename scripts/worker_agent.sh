@@ -158,19 +158,42 @@ RULES:
 
     # ── Call the LLM (with timeout) ───────────────────────────
     # Replace 'ac' with your actual AI CLI tool (claude, aider, etc.)
-    if ! timeout "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT"; then
-        if [ $? -eq 124 ]; then
-            echo "⏰ LLM call TIMED OUT after ${LLM_TIMEOUT}s"
-            LAST_ERROR="LLM call timed out after ${LLM_TIMEOUT} seconds"
-            ((ATTEMPT++))
-            continue
-        fi
+    if command -v timeout &>/dev/null; then
+        timeout "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT"
+    elif command -v perl &>/dev/null; then
+        perl -e 'eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm shift; system(@ARGV); alarm 0 }; if ($@ eq "TIMEOUT\n") { exit 124 } exit ($? >> 8)' "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT"
+    else
+        ../../scripts/ac "$LLM_PROMPT"
+    fi
+    LLM_CODE=$?
+    
+    if [ $LLM_CODE -eq 124 ]; then
+        echo "⏰ LLM call TIMED OUT after ${LLM_TIMEOUT}s"
+        LAST_ERROR="LLM call timed out after ${LLM_TIMEOUT} seconds"
+        ((ATTEMPT++))
+        continue
+    elif [ $LLM_CODE -ne 0 ]; then
+        echo "❌ LLM call FAILED"
+        LAST_ERROR="LLM call failed with exit code $LLM_CODE"
+        ((ATTEMPT++))
+        continue
     fi
 
     # ── Run the Oracle (with timeout) ──────────────────────────
     echo ""
     echo "🔮 Running Oracle verification..."
-    if ORACLE_OUTPUT=$(timeout "$ORACLE_TIMEOUT" ../../scripts/oracle_verify.sh 2>&1); then
+    if command -v timeout &>/dev/null; then
+        ORACLE_OUTPUT=$(timeout "$ORACLE_TIMEOUT" ../../scripts/oracle_verify.sh 2>&1)
+        ORACLE_EXIT=$?
+    elif command -v perl &>/dev/null; then
+        ORACLE_OUTPUT=$(perl -e 'eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm shift; system(@ARGV); alarm 0 }; if ($@ eq "TIMEOUT\n") { exit 124 } exit ($? >> 8)' "$ORACLE_TIMEOUT" ../../scripts/oracle_verify.sh 2>&1)
+        ORACLE_EXIT=$?
+    else
+        ORACLE_OUTPUT=$(../../scripts/oracle_verify.sh 2>&1)
+        ORACLE_EXIT=$?
+    fi
+
+    if [ $ORACLE_EXIT -eq 0 ]; then
         echo "$ORACLE_OUTPUT"
         echo ""
         echo "✅ VERIFICATION PASSED on attempt $ATTEMPT"
@@ -180,7 +203,19 @@ RULES:
         if [ -f "../../scripts/quality_gate_pipeline.sh" ]; then
             echo ""
             echo "🏗️  Running Quality Gate Pipeline..."
-            if ! GATE_OUTPUT=$(timeout "$GATE_TIMEOUT" ../../scripts/quality_gate_pipeline.sh 2>&1); then
+            
+            if command -v timeout &>/dev/null; then
+                GATE_OUTPUT=$(timeout "$GATE_TIMEOUT" ../../scripts/quality_gate_pipeline.sh 2>&1)
+                GATE_EXIT=$?
+            elif command -v perl &>/dev/null; then
+                GATE_OUTPUT=$(perl -e 'eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm shift; system(@ARGV); alarm 0 }; if ($@ eq "TIMEOUT\n") { exit 124 } exit ($? >> 8)' "$GATE_TIMEOUT" ../../scripts/quality_gate_pipeline.sh 2>&1)
+                GATE_EXIT=$?
+            else
+                GATE_OUTPUT=$(../../scripts/quality_gate_pipeline.sh 2>&1)
+                GATE_EXIT=$?
+            fi
+
+            if [ $GATE_EXIT -ne 0 ]; then
                 # Save diff BEFORE wiping (state persistence)
                 echo "💾 Saving attempt $ATTEMPT diff for retry context..."
                 git diff > "$RETRY_DIFFS_DIR/attempt-${ATTEMPT}.diff" 2>/dev/null || true
@@ -249,9 +284,7 @@ PREOF
 
         # Update audit log
         if [ -n "${LOG_FILE:-}" ]; then
-            sed -i "s|\"result\": \"in_progress\"|\"result\": \"success\"|" "$LOG_FILE"
-            sed -i "s|\"attempts\": 0|\"attempts\": $ATTEMPT|" "$LOG_FILE"
-            sed -i "s|\"pr_url\": null|\"pr_url\": \"$PR_URL\"|" "$LOG_FILE"
+            jq ".result = \"success\" | .attempts = $ATTEMPT | .pr_url = \"$PR_URL\"" "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
         fi
 
         exit 0
@@ -282,10 +315,8 @@ echo "💀 ═══════════════════════
 
 # Update audit log
 if [ -n "${LOG_FILE:-}" ]; then
-    ESCAPED_ERROR=$(echo "$LAST_ERROR" | head -5 | tr '\n' ' ' | sed 's/"/\\"/g')
-    sed -i "s|\"result\": \"in_progress\"|\"result\": \"failed\"|" "$LOG_FILE"
-    sed -i "s|\"attempts\": 0|\"attempts\": $MAX|" "$LOG_FILE"
-    sed -i "s|\"error\": null|\"error\": \"$ESCAPED_ERROR\"|" "$LOG_FILE"
+    ESCAPED_ERROR=$(echo "$LAST_ERROR" | head -n 5 | tr '\n' ' ' | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+    jq ".result = \"failed\" | .attempts = $MAX | .error = \"$ESCAPED_ERROR\"" "$LOG_FILE" > "$LOG_FILE.tmp" && mv "$LOG_FILE.tmp" "$LOG_FILE"
 fi
 
 exit 1

@@ -1,6 +1,6 @@
 name: go-agent-service
 runtime: go
-docker_compatible: true
+docker_compatible: false
 max_retries: 3
 setup_command: go mod tidy
 test_command: go test ./...
