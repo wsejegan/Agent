@@ -136,9 +136,10 @@ $LAST_ERROR
 Analyze the error carefully and fix the root cause. Do NOT repeat the same mistake.
 ")
 
-1. Apply SURGICAL patches.
-2. Update/add tests in tests/ or *_test.go.
-3. Pass verification.
+8.  **Editing**: You MUST use the following format for ALL file modifications:
+    <file path=\"relative/path/within/service/file.go\">
+    // Full file content here
+    </file>
 "
 
     # ── Check Token Budget ────────────────────────────────────
@@ -151,16 +152,20 @@ Analyze the error carefully and fix the root cause. Do NOT repeat the same mista
         exit 1
     fi
 
-    # ── Call the LLM (with timeout) ───────────────────────────
-    # Replace 'ac' with your actual AI CLI tool (claude, aider, etc.)
+    LLM_RESPONSE_FILE="/tmp/hiveagent-llm-response-$$.txt"
+    
+    # Capture LLM output
     if command -v timeout &>/dev/null; then
-        timeout "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT"
+        timeout "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT" > "$LLM_RESPONSE_FILE"
     elif command -v perl &>/dev/null; then
-        perl -e 'eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm shift; system(@ARGV); alarm 0 }; if ($@ eq "TIMEOUT\n") { exit 124 } exit ($? >> 8)' "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT"
+        perl -e 'eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm shift; system(@ARGV); alarm 0 }; if ($@ eq "TIMEOUT\n") { exit 124 } exit ($? >> 8)' "$LLM_TIMEOUT" ../../scripts/ac "$LLM_PROMPT" > "$LLM_RESPONSE_FILE"
     else
-        ../../scripts/ac "$LLM_PROMPT"
+        ../../scripts/ac "$LLM_PROMPT" > "$LLM_RESPONSE_FILE"
     fi
     LLM_CODE=$?
+    
+    # Also print to console for visibility in logs
+    cat "$LLM_RESPONSE_FILE"
     
     if [ $LLM_CODE -eq 124 ]; then
         echo "⏰ LLM call TIMED OUT after ${LLM_TIMEOUT}s"
@@ -172,6 +177,13 @@ Analyze the error carefully and fix the root cause. Do NOT repeat the same mista
         LAST_ERROR="LLM call failed with exit code $LLM_CODE"
         ((ATTEMPT++))
         continue
+    fi
+
+    # ── Apply Edits ───────────────────────────────────────────
+    echo ""
+    echo "🛠️  Applying AI edits..."
+    if ! python3 ../../scripts/apply_edits.py "$LLM_RESPONSE_FILE"; then
+        echo "⚠️  Failed to apply edits or no edits found."
     fi
 
     # ── Run the Oracle (with timeout) ──────────────────────────

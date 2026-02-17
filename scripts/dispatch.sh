@@ -11,7 +11,7 @@ TASK_PROMPT="${2:?❌ Usage: dispatch.sh <SERVICE_NAME> <TASK_PROMPT>}"
 MANIFEST="services/$SERVICE_NAME/.hiveagent.yml"
 LOG_DIR="logs"
 TIMESTAMP=$(date +%Y-%m-%dT%H:%M:%S)
-LOG_FILE="$LOG_DIR/${TIMESTAMP}-${SERVICE_NAME}.json"
+LOG_FILE="$(pwd)/$LOG_DIR/${TIMESTAMP}-${SERVICE_NAME}.json"
 LOCK_FILE="services/$SERVICE_NAME/.hiveagent.lock"
 
 # ── 0. Check Prerequisites (yq required) ──────────────────────

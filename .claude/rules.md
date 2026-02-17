@@ -11,3 +11,10 @@
     -   No hardcoded secrets.
 6.  **Style**: Follow the existing patterns in the codebase. Mimic the surrounding code style.
 7.  **Communication**: Be terse. Focus on the diffs and the results.
+8.  **Editing**: When you want to modify a file, you MUST output the entire code within a tag like this:
+    ```
+    <file path="relative/path/to/file.go">
+    // your code here
+    </file>
+    ```
+    Always include the full file content inside the tag.
