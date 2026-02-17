@@ -25,7 +25,8 @@ payload = {
     "model": MODEL,
     "messages": [
         {"role": "user", "content": PROMPT}
-    ]
+    ],
+    "max_tokens": 1000
 }
 
 headers = {
