@@ -20,7 +20,7 @@ fi
 
 # ── 3. Context Reconnaissance ──────────────────────────────────
 echo "🔭 RECON: Scanning service structure..."
-FILE_TREE=$(tree -L 2 -I 'node_modules|venv|__pycache__|.git|dist|build|target|bin|obj' . 2>/dev/null || find . -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -n 20)
+FILE_TREE=$(tree -L 3 -I 'node_modules|venv|__pycache__|.git|dist|build|target|bin|obj' . 2>/dev/null || find . -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -n 30)
 echo "$FILE_TREE"
 echo ""
 
@@ -39,7 +39,7 @@ TEST_FILES=$(find . -path '*/test*' -name '*.go' 2>/dev/null | head -n 1)
 if [ -n "$TEST_FILES" ]; then
     CONTEXT_PAYLOAD+="EXISTING TEST FILES:\n"
     for tf in $TEST_FILES; do
-        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -n 20 "$tf")\n\n"
+        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -n 50 "$tf")\n\n"
     done
 fi
 
@@ -107,7 +107,7 @@ CUMULATIVE_TOKENS=0
 TOKEN_BUDGET=${TOKEN_BUDGET:-50000}
 
 # ── 6. The Execution Loop ──────────────────────────────────────
-MAX=${MAX_RETRIES:-3}
+MAX=${MAX_RETRIES:-5}
 ATTEMPT=1
 LAST_ERROR=""
 
@@ -136,7 +136,10 @@ $LAST_ERROR
 Analyze the error carefully and fix the root cause. Do NOT repeat the same mistake.
 ")
 
-8.  **Editing**: You MUST use the following format for ALL file modifications:
+1. Apply SURGICAL patches. This service uses the **GIN** router.
+2. Update/add tests in tests/ or *_test.go.
+3. Pass verification. If you add dependencies, I will run 'go mod tidy' for you.
+8. **Editing**: You MUST use the following format for ALL file modifications:
     <file path=\"relative/path/within/service/file.go\">
     // Full file content here
     </file>

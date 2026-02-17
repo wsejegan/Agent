@@ -71,21 +71,27 @@ fi
 
 # ── 3. Initialize Audit Log ────────────────────────────────────
 mkdir -p "$LOG_DIR"
-cat > "$LOG_FILE" <<EOF
-{
-  "timestamp": "$TIMESTAMP",
-  "service": "$SERVICE_NAME",
-  "task": "$TASK_PROMPT",
-  "runtime": "$RUNTIME",
-  "mode": "$([ "$DOCKER_COMPATIBLE" == "true" ] && echo "docker" || echo "native")",
-  "max_retries": $MAX_RETRIES,
-  "max_cost_usd": $MAX_COST,
-  "result": "in_progress",
-  "attempts": 0,
-  "pr_url": null,
-  "error": null
-}
-EOF
+jq -n \
+  --arg timestamp "$TIMESTAMP" \
+  --arg service "$SERVICE_NAME" \
+  --arg task "$TASK_PROMPT" \
+  --arg runtime "$RUNTIME" \
+  --arg mode "$([ "$DOCKER_COMPATIBLE" == "true" ] && echo "docker" || echo "native")" \
+  --argjson retries "$MAX_RETRIES" \
+  --argjson budget "$MAX_COST" \
+  '{
+    timestamp: $timestamp,
+    service: $service,
+    task: $task,
+    runtime: $runtime,
+    mode: $mode,
+    max_retries: $retries,
+    max_cost_usd: $budget,
+    result: "in_progress",
+    attempts: 0,
+    pr_url: null,
+    error: null
+  }' > "$LOG_FILE"
 
 # ── 4. Display Mission Brief ───────────────────────────────────
 echo "╔══════════════════════════════════════════════════════╗"
