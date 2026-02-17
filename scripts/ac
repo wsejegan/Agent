@@ -19,14 +19,14 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 PROMPT = sys.argv[1]
-MODEL = os.environ.get("AC_MODEL", "google/gemini-2.0-flash-001")
+MODEL = os.environ.get("AC_MODEL", "anthropic/claude-3.5-sonnet")
 
 payload = {
     "model": MODEL,
     "messages": [
         {"role": "user", "content": PROMPT}
     ],
-    "max_tokens": 2048
+    "max_tokens": 500
 }
 
 headers = {

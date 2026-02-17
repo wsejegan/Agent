@@ -17,4 +17,4 @@
     // your code here
     </file>
     ```
-    Always include the full file content inside the tag.
+    Always include the full file content inside the tag. Do NOT truncate, add placeholders like "// ...", or delete existing code unless explicitly asked.

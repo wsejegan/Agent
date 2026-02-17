@@ -34,12 +34,21 @@ if [ -f "$MANIFEST" ]; then
     CONTEXT_PAYLOAD+="SERVICE MANIFEST (.hiveagent.yml):\n$(cat "$MANIFEST")\n\n"
 fi
 
+# Read key implementation files
+IMPLEMENTATION_FILES=$(find . -maxdepth 3 -name '*.go' ! -name '*_test.go' 2>/dev/null | head -n 5)
+if [ -n "$IMPLEMENTATION_FILES" ]; then
+    CONTEXT_PAYLOAD+="KEY IMPLEMENTATION FILES:\n"
+    for ifile in $IMPLEMENTATION_FILES; do
+        CONTEXT_PAYLOAD+="--- $ifile ---\n$(cat "$ifile" | head -n 300)\n\n"
+    done
+fi
+
 # Read existing test files to understand patterns (limit to 1)
 TEST_FILES=$(find . -path '*/test*' -name '*.go' 2>/dev/null | head -n 1)
 if [ -n "$TEST_FILES" ]; then
     CONTEXT_PAYLOAD+="EXISTING TEST FILES:\n"
     for tf in $TEST_FILES; do
-        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -n 50 "$tf")\n\n"
+        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -n 100 "$tf")\n\n"
     done
 fi
 
