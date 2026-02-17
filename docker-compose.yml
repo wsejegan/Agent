@@ -1,0 +1,17 @@
+services:
+  hiveagent-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.universal
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - hive-net
+
+networks:
+  hive-net:
+    driver: bridge

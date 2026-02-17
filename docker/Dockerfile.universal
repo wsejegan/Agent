@@ -1,0 +1,43 @@
+FROM ubuntu:22.04
+
+# ═══════════════════════════════════════════════════════════════
+# HiveAgent v5.0 — Universal Worker Image
+# Supports: Go 1.22, Node 20, Python 3.10
+# ═══════════════════════════════════════════════════════════════
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# ── 1. Install Base Tools ──────────────────────────────────────
+RUN apt-get update && apt-get install -y \
+    curl git jq unzip zip make build-essential \
+    python3 python3-pip python3-venv \
+    software-properties-common wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── 2. Install yq (YAML Processor) ─────────────────────────────
+RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq \
+    && chmod +x /usr/bin/yq
+
+# ── 3. Install Go 1.22 ─────────────────────────────────────────
+RUN wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz \
+    && rm go1.22.0.linux-amd64.tar.gz
+
+# ── 4. Install Node.js 20 ──────────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm yarn
+
+# ── 5. Setup Workspace ─────────────────────────────────────────
+WORKDIR /app
+COPY . /app
+
+# ── 6. Environment Setup ───────────────────────────────────────
+# Create a robust shell environment for the agent
+RUN git config --global user.email "agent@hiveagent.ia" \
+    && git config --global user.name "HiveAgent Worker"
+
+# ── 7. Entrypoint ──────────────────────────────────────────────
+# The container expects to run worker_agent.sh
+CMD ["./scripts/worker_agent.sh"]

@@ -1,0 +1,14 @@
+name: go-agent-service
+runtime: go
+docker_compatible: true
+max_retries: 3
+setup_command: go mod tidy
+test_command: go test ./...
+lint_command: go vet ./...
+type_check_command: go build ./...
+prerequisites:
+  - go version 1.22+
+  - git
+readable_paths:
+  - scripts/
+  - .claude/
