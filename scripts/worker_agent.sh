@@ -20,7 +20,7 @@ fi
 
 # ── 3. Context Reconnaissance ──────────────────────────────────
 echo "🔭 RECON: Scanning service structure..."
-FILE_TREE=$(tree -L 3 -I 'node_modules|venv|__pycache__|.git|dist|build|target|bin|obj' . 2>/dev/null || find . -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -50)
+FILE_TREE=$(tree -L 2 -I 'node_modules|venv|__pycache__|.git|dist|build|target|bin|obj' . 2>/dev/null || find . -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -n 20)
 echo "$FILE_TREE"
 echo ""
 
@@ -34,12 +34,12 @@ if [ -f "$MANIFEST" ]; then
     CONTEXT_PAYLOAD+="SERVICE MANIFEST (.hiveagent.yml):\n$(cat "$MANIFEST")\n\n"
 fi
 
-# Read existing test files to understand patterns
-TEST_FILES=$(find . -path '*/test*' -name '*.py' -o -path '*/test*' -name '*.ts' -o -path '*/test*' -name '*.js' -o -path '*/test*' -name '*.go' -o -path '*Test*' -name '*.java' -o -path '*Test*' -name '*.cs' 2>/dev/null | head -5)
+# Read existing test files to understand patterns (limit to 1)
+TEST_FILES=$(find . -path '*/test*' -name '*.go' 2>/dev/null | head -n 1)
 if [ -n "$TEST_FILES" ]; then
     CONTEXT_PAYLOAD+="EXISTING TEST FILES:\n"
     for tf in $TEST_FILES; do
-        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -100 "$tf")\n\n"
+        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -n 20 "$tf")\n\n"
     done
 fi
 
@@ -136,14 +136,9 @@ $LAST_ERROR
 Analyze the error carefully and fix the root cause. Do NOT repeat the same mistake.
 ")
 
-RULES:
-1. READ the relevant source files before making any edit.
-2. Only edit files inside THIS directory (services/$TARGET_SERVICE).
-3. Apply SURGICAL patches — do NOT rewrite entire files.
-4. If you modify logic, you MUST update or add a test case in the tests/ folder.
-5. You MUST pass the verification step (lint + tests).
-6. NEVER disable or skip tests to make them pass. Fix the code.
-7. Use existing code patterns, naming conventions, and import styles.
+1. Apply SURGICAL patches.
+2. Update/add tests in tests/ or *_test.go.
+3. Pass verification.
 "
 
     # ── Check Token Budget ────────────────────────────────────
