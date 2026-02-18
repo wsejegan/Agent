@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-02-18T10:19:06",
+  "service": "go-agent-service",
+  "task": "Add a /v2/ping endpoint that returns {\"pong\": true}. Do not include markdown code fences in your <file> blocks, just raw code.",
+  "runtime": "go",
+  "mode": "native",
+  "max_retries": 3,
+  "max_cost_usd": 5.00,
+  "result": "success",
+  "attempts": 1,
+  "pr_url": "https://github.com/org/repo/pull/mock-123",
+  "error": null
+}

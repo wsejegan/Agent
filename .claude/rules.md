@@ -18,3 +18,6 @@
     </file>
     ```
     Always include the full file content inside the tag. Do NOT truncate, add placeholders like "// ...", or delete existing code unless explicitly asked.
+21. **Routing**: If you add a NEW endpoint, you MUST register it in `cmd/server/main.go` or the appropriate router configuration.
+22. **Files**: Do NOT create new handler files if an existing one (like `handlers.go`) is appropriate. Reuse existing patterns.
+23. **Persistence**: Your changes only "stick" if they pass verification.

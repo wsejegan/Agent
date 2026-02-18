@@ -17,10 +17,14 @@ cleanup() {
     echo "🧹 Cleaning up worktree..."
     cd "$ORIGINAL_DIR"
     git worktree remove "$WORKTREE_DIR" --force 2>/dev/null || true
-    # Only delete branch if mission failed
-    if [ "${MISSION_SUCCESS:-false}" != "true" ]; then
-        git branch -D "$BRANCH_NAME" 2>/dev/null || true
+    
+    if [ "${MISSION_SUCCESS:-false}" == "true" ]; then
+        echo "✅ Mission successful. Merging $BRANCH_NAME into main..."
+        git merge "$BRANCH_NAME" --no-ff -m "merge: ai mission complete [$SERVICE_NAME]"
+    else
+        echo "❌ Mission failed or aborted. Discarding $BRANCH_NAME..."
     fi
+    git branch -D "$BRANCH_NAME" 2>/dev/null || true
 }
 trap cleanup EXIT
 
