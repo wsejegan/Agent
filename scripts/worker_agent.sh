@@ -20,7 +20,7 @@ fi
 
 # ── 3. Context Reconnaissance ──────────────────────────────────
 echo "🔭 RECON: Scanning service structure..."
-FILE_TREE=$(tree -L 3 -I 'node_modules|venv|__pycache__|.git|dist|build|target|bin|obj' . 2>/dev/null || find . -maxdepth 3 -not -path '*/node_modules/*' -not -path '*/.git/*' | head -n 30)
+FILE_TREE=$(find . -maxdepth 2 -not -path '*/.*' | head -n 15)
 echo "$FILE_TREE"
 echo ""
 
@@ -28,38 +28,12 @@ echo ""
 # Build a context payload with actual file contents
 CONTEXT_PAYLOAD="SERVICE DIRECTORY STRUCTURE:\n$FILE_TREE\n\n"
 
-# Auto-read files likely relevant to the task
-MANIFEST=".hiveagent.yml"
-if [ -f "$MANIFEST" ]; then
-    CONTEXT_PAYLOAD+="SERVICE MANIFEST (.hiveagent.yml):\n$(cat "$MANIFEST")\n\n"
-fi
-
-# Read key implementation files
-IMPLEMENTATION_FILES=$(find . -maxdepth 3 -name '*.go' ! -name '*_test.go' 2>/dev/null | head -n 5)
+# Read key implementation files (max 30 lines)
+IMPLEMENTATION_FILES=$(find . -maxdepth 2 -name '*.go' ! -name '*_test.go' 2>/dev/null | head -n 2)
 if [ -n "$IMPLEMENTATION_FILES" ]; then
-    CONTEXT_PAYLOAD+="KEY IMPLEMENTATION FILES:\n"
+    CONTEXT_PAYLOAD+="CODE:\n"
     for ifile in $IMPLEMENTATION_FILES; do
-        CONTEXT_PAYLOAD+="--- $ifile ---\n$(cat "$ifile" | head -n 300)\n\n"
-    done
-fi
-
-# Read existing test files to understand patterns (limit to 1)
-TEST_FILES=$(find . -path '*/test*' -name '*.go' 2>/dev/null | head -n 1)
-if [ -n "$TEST_FILES" ]; then
-    CONTEXT_PAYLOAD+="EXISTING TEST FILES:\n"
-    for tf in $TEST_FILES; do
-        CONTEXT_PAYLOAD+="--- $tf ---\n$(head -n 100 "$tf")\n\n"
-    done
-fi
-
-# Read shared contract/proto files if declared in manifest
-if [ -f "$MANIFEST" ] && yq '.readable_paths' "$MANIFEST" 2>/dev/null | grep -q '\S'; then
-    READABLE=$(yq '.readable_paths[]' "$MANIFEST" 2>/dev/null)
-    for rpath in $READABLE; do
-        FULL_PATH="../../$rpath"
-        if [ -d "$FULL_PATH" ]; then
-            CONTEXT_PAYLOAD+="SHARED READABLE ($rpath):\n$(tree -L 2 "$FULL_PATH" 2>/dev/null)\n\n"
-        fi
+        CONTEXT_PAYLOAD+="-- $ifile --\n$(cat "$ifile" | head -n 30)\n\n"
     done
 fi
 
@@ -69,41 +43,7 @@ git checkout -b "$BRANCH_NAME" 2>/dev/null || true
 echo "🌿 Branch: $BRANCH_NAME"
 echo ""
 
-# ── 5.5 Load Claude Skills ─────────────────────────────────────
-SKILLS_DIR="../../.claude/skills"
 SKILLS_PAYLOAD=""
-
-if [ -d "$SKILLS_DIR" ]; then
-    echo "🧠 Loading Claude Skills..."
-    
-    for skill_file in "$SKILLS_DIR"/*.md; do
-        [ ! -f "$skill_file" ] && continue
-        SKILL_NAME=$(basename "$skill_file" .md)
-        
-        # Check if skill applies to this runtime
-        RUNTIME_FILTER=$(grep -A5 'applies_to' "$skill_file" 2>/dev/null | grep -E '^  - ' | sed 's/  - //' || echo "all")
-        if echo "$RUNTIME_FILTER" | grep -qE "(all|$RUNTIME)"; then
-            
-            # Check if skill triggers match the task
-            TRIGGERS=$(grep -A20 'triggers' "$skill_file" 2>/dev/null | grep 'keyword' | sed 's/.*keyword: *//' | tr -d '"')
-            SKILL_MATCHED=false
-            
-            for trigger in $TRIGGERS; do
-                if echo "$TASK_PROMPT" | grep -qi "$trigger"; then
-                    SKILL_MATCHED=true
-                    break
-                fi
-            done
-            
-            if [ "$SKILL_MATCHED" == "true" ]; then
-                echo "   ✅ Loaded: $SKILL_NAME"
-                SKILLS_PAYLOAD+="\n--- SKILL: $SKILL_NAME ---\n$(cat "$skill_file")\n"
-            fi
-        fi
-    done
-    
-    [ -z "$SKILLS_PAYLOAD" ] && echo "   ℹ️  No matching skills for this task"
-fi
 
 # ── 5.6 Timeout + Budget Configuration ─────────────────────────
 LLM_TIMEOUT=${LLM_TIMEOUT:-300}        # 5 minutes max per LLM call
